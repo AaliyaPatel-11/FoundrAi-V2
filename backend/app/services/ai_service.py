@@ -37,7 +37,7 @@ def _call_upstream_provider(messages: List[dict], model: str) -> str:
             if "message" in choice and "content" in choice["message"]:
                 return choice["message"]["content"]
                 
-        raise ValueError(f"Invalid response structure from upstream: {data}")
+        raise ValueError("Invalid response structure from upstream AI provider")
 
 
 def generate_response(messages: List[ChatMessage]) -> str:
@@ -75,24 +75,28 @@ def generate_response(messages: List[ChatMessage]) -> str:
 
     except (httpx.HTTPStatusError, httpx.TimeoutException, ValueError) as e:
         should_fallback = False
-        error_details = str(e)
+        error_details = ""
 
         if isinstance(e, httpx.HTTPStatusError):
             status_code = e.response.status_code
-            error_details = f"HTTP status {status_code} - {e.response.text}"
-            # Fallback for 429 (rate limits) and 5xx (server errors)
-            if status_code == 429 or (500 <= status_code < 600):
+            if status_code == 429:
+                error_details = "HTTP 429 (Rate Limited)"
                 should_fallback = True
+            elif 500 <= status_code < 600:
+                error_details = f"HTTP {status_code} (Server Error)"
+                should_fallback = True
+            else:
+                error_details = f"HTTP {status_code}"
         elif isinstance(e, httpx.TimeoutException):
-            error_details = "Request timed out"
+            error_details = "Connection Timeout"
             should_fallback = True
         elif isinstance(e, ValueError):
-            error_details = f"Value error parsing response: {str(e)}"
+            error_details = "Value parsing error"
             should_fallback = True
 
         if not should_fallback:
-            # Re-raise auth (401/403) or client parameter errors (400/404) immediately
-            logger.error(f"Unrecoverable error encountered with primary model: {error_details}. Skipping fallback.")
+            # Re-raise authentication (e.g. 401/403) or malformed query (400) errors immediately
+            logger.error(f"Unrecoverable error with primary model: {error_details}. Skipping fallback.")
             raise e
 
         # Attempt 2: Call fallback model
@@ -100,11 +104,13 @@ def generate_response(messages: List[ChatMessage]) -> str:
         
         try:
             return _call_upstream_provider(formatted_messages, fallback_model)
+        except httpx.HTTPStatusError as fallback_http_err:
+            logger.error(f"Fallback model request failed with HTTP status {fallback_http_err.response.status_code}")
+            return "FondrAI hit a temporary capacity limit. Give me a moment and try that again."
         except Exception as fallback_err:
-            logger.error(f"Fallback model request failed as well: {str(fallback_err)}")
-            # If both fail, return standard capacity error message
+            logger.error("Fallback model request failed with an unexpected error")
             return "FondrAI hit a temporary capacity limit. Give me a moment and try that again."
 
     except Exception as e:
-        logger.error(f"General error encountered in AI service: {str(e)}")
+        logger.error("General error encountered in AI service")
         return "FondrAI is experiencing issues connecting to the AI provider. Please check backend server logs."
