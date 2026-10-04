@@ -7,6 +7,40 @@ from app.prompts.system_prompt import FONDRAI_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+def _fetch_available_models() -> List[str]:
+    """
+    Fetch all currently active models from Groq / OpenAI compatible provider dynamically.
+    """
+    if not AI_API_KEY:
+        return []
+        
+    base_url = AI_BASE_URL or "https://api.groq.com/openai/v1"
+    url = f"{base_url.rstrip('/')}/models"
+    headers = {
+        "Authorization": f"Bearer {AI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "data" in data and isinstance(data["data"], list):
+                    models = [m["id"] for m in data["data"] if "id" in m]
+                    # Filter out non-chat models
+                    chat_models = [
+                        m for m in models 
+                        if not any(x in m.lower() for x in ("whisper", "guard", "safeguard", "embed", "tts", "moderation"))
+                    ]
+                    logger.info(f"Dynamically discovered active models from provider: {chat_models}")
+                    return chat_models
+            else:
+                logger.warning(f"Failed to fetch models from {url}: status={resp.status_code}, body={resp.text}")
+    except Exception as e:
+        logger.warning(f"Could not dynamically query active models: {str(e)}")
+    return []
+
+
 def _call_upstream_provider(messages: List[dict], model: str) -> str:
     """
     Helper function to call the upstream OpenAI-compatible chat completion provider.
@@ -24,7 +58,7 @@ def _call_upstream_provider(messages: List[dict], model: str) -> str:
         "Content-Type": "application/json"
     }
 
-    base_url = AI_BASE_URL or "https://api.openai.com/v1"
+    base_url = AI_BASE_URL or "https://api.groq.com/openai/v1"
     url = f"{base_url.rstrip('/')}/chat/completions"
 
     with httpx.Client(timeout=30.0) as client:
@@ -49,7 +83,7 @@ def generate_response(messages: List[ChatMessage]) -> str:
     """
     Generate a response based on the complete conversation history.
     Uses FONDRAI_SYSTEM_PROMPT as the primary system instruction.
-    Attempts configured model first, and gracefully falls back to available Groq models if 404/429 occurs.
+    Dynamically auto-discovers and uses active models from the provider.
     """
     if not AI_API_KEY:
         logger.info("AI_API_KEY is not configured. Using offline development fallback.")
@@ -69,22 +103,30 @@ def generate_response(messages: List[ChatMessage]) -> str:
         elif msg.role == "system":
             logger.warning("Ignoring external system message in request history to preserve prompt integrity.")
 
-    # Candidate models to try in order
+    # 1. Candidate models: start with configured AI_MODEL
     candidate_models: List[str] = []
     if AI_MODEL and AI_MODEL.strip():
         candidate_models.append(AI_MODEL.strip())
     
-    # Standard reliable Groq fallback models
-    default_fallbacks = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "gemma2-9b-it",
-        "deepseek-r1-distill-llama-70b",
-        "qwen-2.5-32b"
+    # 2. Dynamically fetch currently active models from Groq / provider
+    active_discovered_models = _fetch_available_models()
+    for m in active_discovered_models:
+        if m not in candidate_models:
+            candidate_models.append(m)
+
+    # 3. Known modern models as last-resort static fallback
+    static_fallbacks = [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "llama-3.2-11b-vision-preview",
+        "llama-3.2-90b-vision-preview",
+        "llama-3.2-3b-preview",
+        "llama-3.2-1b-preview",
     ]
-    for fallback in default_fallbacks:
-        if fallback not in candidate_models:
-            candidate_models.append(fallback)
+    for m in static_fallbacks:
+        if m not in candidate_models:
+            candidate_models.append(m)
 
     last_error = None
     for model in candidate_models:
@@ -104,4 +146,4 @@ def generate_response(messages: List[ChatMessage]) -> str:
             continue
 
     logger.error(f"All candidate models failed. Last error: {last_error}")
-    return "FondrAI is currently unable to reach the AI model. Please check the API key and provider configuration."
+    return "FondrAI is currently unable to reach the AI model. Please check your AI API key and provider configuration."
