@@ -12,7 +12,7 @@ else:
 # AI Configuration
 AI_API_KEY = os.getenv("AI_API_KEY")
 AI_BASE_URL = os.getenv("AI_BASE_URL")
-AI_MODEL = os.getenv("AI_MODEL", "fondrai")
+AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
 
 # CORS Setup
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://foundr-ai-v2-delta.vercel.app")
