@@ -9,6 +9,7 @@ class ChatCompletionRequest(BaseModel):
     model: str = "fondrai"
     messages: List[ChatMessage]
     stream: Optional[bool] = False
+    role: Optional[str] = None
 
 class ChoiceMessage(BaseModel):
     role: str = "assistant"
