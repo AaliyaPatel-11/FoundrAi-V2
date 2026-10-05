@@ -4,6 +4,7 @@ from typing import List
 from app.models.chat import ChatMessage
 from app.config import AI_API_KEY, AI_BASE_URL, AI_MODEL
 from app.prompts.system_prompt import FONDRAI_SYSTEM_PROMPT
+from app.prompts.cfo_prompt import CFO_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def _call_upstream_provider(messages: List[dict], model: str) -> str:
         raise ValueError("Invalid response structure from upstream AI provider")
 
 
-def generate_response(messages: List[ChatMessage]) -> str:
+def generate_response(messages: List[ChatMessage], role: str = None) -> str:
     """
     Generate a response based on the complete conversation history.
     Uses FONDRAI_SYSTEM_PROMPT as the primary system instruction.
@@ -90,8 +91,10 @@ def generate_response(messages: List[ChatMessage]) -> str:
         return "FondrAI is online, but its AI provider isn't configured yet."
 
     # Prepare conversation history payload
+    system_prompt = CFO_SYSTEM_PROMPT if role == "cfo" else FONDRAI_SYSTEM_PROMPT
+
     formatted_messages = [
-        {"role": "system", "content": FONDRAI_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt}
     ]
 
     for msg in messages:
