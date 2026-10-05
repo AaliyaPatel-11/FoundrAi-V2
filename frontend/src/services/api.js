@@ -7,14 +7,15 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
  * @param {Array<{role: string, content: string}>} messages 
  * @returns {Promise<string>} Content of the assistant's message
  */
-export async function sendChatMessage(messages) {
+export async function sendChatMessage(messages, role = null) {
   const cleanBaseUrl = API_BASE_URL.replace(/\/$/, '');
   const url = `${cleanBaseUrl}/chat/completions`;
 
   const payload = {
     model: 'fondrai',
     messages: messages,
-    stream: false
+    stream: false,
+    role: role
   };
 
   try {

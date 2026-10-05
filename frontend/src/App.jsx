@@ -10,6 +10,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedRole, setSelectedRole] = useState(null);
   
   const messagesEndRef = useRef(null);
 
@@ -33,7 +34,7 @@ export default function App() {
     setError(null);
 
     try {
-      const responseContent = await sendChatMessage(updatedMessages);
+      const responseContent = await sendChatMessage(updatedMessages, selectedRole);
       setMessages((prev) => [...prev, { role: 'assistant', content: responseContent }]);
     } catch (err) {
       console.error(err);
@@ -73,7 +74,19 @@ export default function App() {
             </p>
           </div>
         </div>
-
+<div className="flex items-center space-x-2">
+  <span className="text-xs text-slate-400">Role:</span>
+  <select
+    value={selectedRole || 'founder'}
+    onChange={(e) =>
+      setSelectedRole(e.target.value === 'founder' ? null : e.target.value)
+    }
+    className="bg-slate-900/60 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:ring-2 focus:ring-accent-teal/50"
+  >
+    <option value="founder">Founder</option>
+    <option value="cfo">CFO</option>
+  </select>
+</div>
         {messages.length > 0 && (
           <button
             onClick={handleResetChat}
@@ -100,7 +113,11 @@ export default function App() {
           ) : (
             <div className="max-w-3xl mx-auto space-y-2">
               {messages.map((message, index) => (
-                <ChatMessage key={index} message={message} />
+                <ChatMessage
+                  key={index}
+                  message={message}
+                  selectedRole={selectedRole}
+                />
               ))}
               
               {isLoading && <TypingIndicator />}
