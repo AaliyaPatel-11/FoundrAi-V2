@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def chat_completions(request: ChatCompletionRequest):
     try:
         # Generate the response using full messages history
-        content = generate_response(request.messages)
+        content = generate_response(request.messages, request.role)
         
         # Construct OpenAI-compatible response format
         response_id = f"chatcmpl-fondrai-{uuid.uuid4().hex[:8]}"
