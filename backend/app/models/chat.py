@@ -6,7 +6,7 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatCompletionRequest(BaseModel):
-    model: str = "fondrai"
+    model: str = "foundrai"
     messages: List[ChatMessage]
     stream: Optional[bool] = False
     role: Optional[str] = None
