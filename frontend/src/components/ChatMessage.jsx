@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, Cpu } from 'lucide-react';
 
-export default function ChatMessage({ message }) {
+export default function ChatMessage({ message, selectedRole }) {
   const isAssistant = message.role === 'assistant';
 
   return (
@@ -25,7 +25,9 @@ export default function ChatMessage({ message }) {
         }`}>
           {/* Sender indicator */}
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1 select-none">
-            {isAssistant ? 'FondrAI Co-founder' : 'You'}
+            {isAssistant
+              ? (selectedRole === 'cfo' ? 'CFO' : 'FondrAI Co-founder')
+              : 'You'}
           </div>
           
           {/* Message Content */}

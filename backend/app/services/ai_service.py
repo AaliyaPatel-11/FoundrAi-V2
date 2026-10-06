@@ -66,8 +66,7 @@ def _call_upstream_provider(messages: List[dict], model: str) -> str:
         response = client.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             logger.error(
-                f"Upstream AI provider error: status_code={response.status_code} "
-                f"url={url} model={model} body={response.text}"
+                f"Upstream AI provider error: status_code={response.status_code}"
             )
         response.raise_for_status()
         data = response.json()
