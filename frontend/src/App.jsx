@@ -10,6 +10,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('founder');
   
   const messagesEndRef = useRef(null);
 
@@ -32,15 +33,25 @@ export default function App() {
     setIsLoading(true);
     setError(null);
 
+
     try {
-      const responseContent = await sendChatMessage(updatedMessages);
-      setMessages((prev) => [...prev, { role: 'assistant', content: responseContent }]);
+      const responseContent = await sendChatMessage(updatedMessages, selectedRole);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: responseContent,
+          agentRole: selectedRole,
+        },
+      ]);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Unable to connect to FondrAI. Make sure the backend server is running.');
     } finally {
       setIsLoading(false);
     }
+
   };
 
   const handleSelectStarter = (text) => {
@@ -73,6 +84,24 @@ export default function App() {
             </p>
           </div>
         </div>
+    <div className="flex items-center gap-2">
+      <label htmlFor="agent-role" className="text-xs text-slate-400">
+        Agent
+      </label>
+
+      <select
+        id="agent-role"
+        value={selectedRole}
+        onChange={(e) => setSelectedRole(e.target.value)}
+        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-teal-500"
+      >
+        <option value="founder">Founder</option>
+        <option value="cfo">CFO</option>
+        <option value="cto">CTO</option>
+        <option value="cmo">CMO</option>
+        <option value="product">Product</option>
+      </select>
+     </div>    
 
         {messages.length > 0 && (
           <button
