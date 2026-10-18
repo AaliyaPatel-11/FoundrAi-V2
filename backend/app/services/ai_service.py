@@ -1,3 +1,4 @@
+
 import httpx
 import logging
 from typing import List
@@ -11,16 +12,11 @@ from app.prompts.cto_prompt import CTO_SYSTEM_PROMPT
 from app.prompts.cmo_prompt import CMO_SYSTEM_PROMPT
 from app.prompts.product_prompt import PRODUCT_SYSTEM_PROMPT
 
-
 logger = logging.getLogger(__name__)
 
 
 def generate_response(messages: List[ChatMessage], role: str = None) -> str:
-    """
-    Generate a response based on the complete conversation history.
-    Selects the appropriate startup agent based on the requested role.
-    Dynamically discovers and uses active models from the AI provider.
-    """
+    """Generate a response using the selected startup agent."""
 
     if not AI_API_KEY:
         logger.info(
@@ -28,19 +24,15 @@ def generate_response(messages: List[ChatMessage], role: str = None) -> str:
         )
         return "FondrAI is online, but its AI provider isn't configured yet."
 
-    # Select the appropriate agent system prompt
-    if role == "cfo":
-        system_prompt = CFO_SYSTEM_PROMPT
-    elif role == "cto":
-        system_prompt = CTO_SYSTEM_PROMPT
-    elif role == "cmo":
-        system_prompt = CMO_SYSTEM_PROMPT
-    elif role == "product":
-        system_prompt = PRODUCT_SYSTEM_PROMPT
-    else:
-        system_prompt = FONDRAI_SYSTEM_PROMPT
+    # Select the appropriate agent system prompt.
+    prompts = {
+        "cfo": CFO_SYSTEM_PROMPT,
+        "cto": CTO_SYSTEM_PROMPT,
+        "cmo": CMO_SYSTEM_PROMPT,
+        "product": PRODUCT_SYSTEM_PROMPT,
+    }
+    system_prompt = prompts.get(role, FONDRAI_SYSTEM_PROMPT)
 
-    # Prepare conversation history payload
     formatted_messages = [
         {"role": "system", "content": system_prompt}
     ]
@@ -53,49 +45,67 @@ def generate_response(messages: List[ChatMessage], role: str = None) -> str:
             }
         )
 
-    # Discover active models from the provider
+    base_url = (
+        AI_BASE_URL or "https://api.groq.com/openai/v1"
+    ).rstrip("/")
+
+    # Discover available models, then fall back to the configured model.
     try:
-        available_models = _fetch_available_models()
+        available_models = _fetch_available_models(base_url)
     except Exception as e:
         logger.warning(
-            f"Failed to discover available models: {str(e)}"
+            "Failed to discover available models: %s", str(e)
         )
         available_models = []
 
     models_to_try = available_models or [AI_MODEL]
-
-    last_error = None
+    headers = {
+        "Authorization": f"Bearer {AI_API_KEY}",
+        "Content-Type": "application/json",
+    }
 
     for model in models_to_try:
+        if not model:
+            continue
+
         try:
             response = httpx.post(
-                f"{AI_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {AI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
+                f"{base_url}/chat/completions",
+                headers=headers,
                 json={
                     "model": model,
                     "messages": formatted_messages,
                     "temperature": 0.7,
+                    "max_tokens": 800,
                 },
                 timeout=60.0,
             )
 
             if response.status_code == 200:
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                choices = data.get("choices", [])
+
+                if choices:
+                    content = choices[0].get("message", {}).get("content")
+                    if isinstance(content, str):
+                        return content
+
+                logger.warning(
+                    "AI provider returned an unexpected response structure."
+                )
+                continue
 
             logger.error(
-                f"Upstream AI provider error: status_code={response.status_code}"
+                "Upstream AI provider error: status_code=%s",
+                response.status_code,
             )
-            last_error = response
 
         except Exception as e:
             logger.warning(
-                f"AI model request failed for model={model}: {str(e)}"
+                "AI model request failed for model=%s: %s",
+                model,
+                str(e),
             )
-            last_error = e
 
     logger.error("All AI provider models failed.")
 
@@ -105,13 +115,19 @@ def generate_response(messages: List[ChatMessage], role: str = None) -> str:
     )
 
 
-def _fetch_available_models() -> List[str]:
-    """
-    Fetch available models from the configured AI provider.
-    """
+def _fetch_available_models(base_url: str = None) -> List[str]:
+    """Fetch available model IDs from the configured AI provider."""
+
+    if not AI_API_KEY:
+        return []
+
+    if base_url is None:
+        base_url = (
+            AI_BASE_URL or "https://api.groq.com/openai/v1"
+        ).rstrip("/")
 
     response = httpx.get(
-        f"{AI_BASE_URL}/models",
+        f"{base_url}/models",
         headers={
             "Authorization": f"Bearer {AI_API_KEY}",
             "Content-Type": "application/json",
@@ -121,8 +137,8 @@ def _fetch_available_models() -> List[str]:
 
     if response.status_code != 200:
         logger.warning(
-            f"Failed to fetch available models: "
-            f"status_code={response.status_code}"
+            "Failed to fetch available models: status_code=%s",
+            response.status_code,
         )
         return []
 

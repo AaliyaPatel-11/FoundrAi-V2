@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatMessage from './components/ChatMessage';
@@ -11,7 +12,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedRole, setSelectedRole] = useState('founder');
-  
+
   const messagesEndRef = useRef(null);
 
   // Auto-scroll to the bottom of the chat window
@@ -24,18 +25,20 @@ export default function App() {
   }, [messages, isLoading]);
 
   const handleSendMessage = async (text) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isLoading) return;
 
     const userMessage = { role: 'user', content: text };
     const updatedMessages = [...messages, userMessage];
-    
+
     setMessages(updatedMessages);
     setIsLoading(true);
     setError(null);
 
-
     try {
-      const responseContent = await sendChatMessage(updatedMessages, selectedRole);
+      const responseContent = await sendChatMessage(
+        updatedMessages,
+        selectedRole
+      );
 
       setMessages((prev) => [
         ...prev,
@@ -47,11 +50,13 @@ export default function App() {
       ]);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Unable to connect to FondrAI. Make sure the backend server is running.');
+      setError(
+        err.message ||
+          'Unable to connect to FondrAI. Make sure the backend server is running.'
+      );
     } finally {
       setIsLoading(false);
     }
-
   };
 
   const handleSelectStarter = (text) => {
@@ -59,7 +64,11 @@ export default function App() {
   };
 
   const handleResetChat = () => {
-    if (window.confirm('Start a new session? This will clear the current conversation history.')) {
+    if (
+      window.confirm(
+        'Start a new session? This will clear the current conversation history.'
+      )
+    ) {
       setMessages([]);
       setError(null);
       setIsLoading(false);
@@ -68,13 +77,13 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-[#0b0f19] text-slate-100 overflow-hidden font-sans">
-      
       {/* Brand Header */}
       <header className="glass-panel border-b border-slate-800/80 px-6 py-4 flex items-center justify-between z-10 flex-shrink-0">
         <div className="flex items-center space-x-3 select-none">
           <div className="bg-gradient-to-tr from-accent-teal to-accent-violet p-2 rounded-xl text-white">
             <Cpu className="w-5 h-5" />
           </div>
+
           <div>
             <h2 className="font-bold text-base leading-tight tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
               FondrAI
@@ -84,24 +93,26 @@ export default function App() {
             </p>
           </div>
         </div>
-    <div className="flex items-center gap-2">
-      <label htmlFor="agent-role" className="text-xs text-slate-400">
-        Agent
-      </label>
 
-      <select
-        id="agent-role"
-        value={selectedRole}
-        onChange={(e) => setSelectedRole(e.target.value)}
-        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-teal-500"
-      >
-        <option value="founder">Founder</option>
-        <option value="cfo">CFO</option>
-        <option value="cto">CTO</option>
-        <option value="cmo">CMO</option>
-        <option value="product">Product</option>
-      </select>
-     </div>    
+        {/* Agent Selector */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="agent-role" className="text-xs text-slate-400">
+            Agent
+          </label>
+
+          <select
+            id="agent-role"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-teal-500"
+          >
+            <option value="founder">Founder</option>
+            <option value="cfo">CFO</option>
+            <option value="cto">CTO</option>
+            <option value="cmo">CMO</option>
+            <option value="product">Product</option>
+          </select>
+        </div>
 
         {messages.length > 0 && (
           <button
@@ -117,10 +128,10 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-grow flex flex-col justify-between overflow-hidden relative">
         {/* Ambient glow backgrounds */}
-        <div className="absolute top-1/4 left-1/4 w-[350px] h-[350px] rounded-full bg-accent-teal/5 filter blur-[120px] -z-10 pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-accent-violet/5 filter blur-[120px] -z-10 pointer-events-none"></div>
+        <div className="absolute top-1/4 left-1/4 w-[350px] h-[350px] rounded-full bg-accent-teal/5 filter blur-[120px] -z-10 pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-accent-violet/5 filter blur-[120px] -z-10 pointer-events-none" />
 
-        {/* Conversation flow section */}
+        {/* Conversation Flow */}
         <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
@@ -129,11 +140,15 @@ export default function App() {
           ) : (
             <div className="max-w-3xl mx-auto space-y-2">
               {messages.map((message, index) => (
-                <ChatMessage key={index} message={message} />
+                <ChatMessage
+                  key={index}
+                  message={message}
+                  selectedRole={selectedRole}
+                />
               ))}
-              
+
               {isLoading && <TypingIndicator />}
-              
+
               {error && (
                 <div className="bg-red-950/20 border border-red-500/30 text-red-200 px-4 py-3.5 rounded-xl text-sm max-w-3xl mx-auto my-4 flex items-start space-x-2">
                   <Terminal className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -143,7 +158,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -152,14 +167,16 @@ export default function App() {
         {/* Bottom Dock for Input */}
         <div className="glass-panel border-t border-slate-900 px-4 py-4 sm:px-8 flex-shrink-0">
           <div className="max-w-3xl mx-auto flex flex-col space-y-2">
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
             <div className="text-[10px] text-slate-500 text-center select-none">
               FondrAI is an interactive AI partner. Discuss and build your startup roadmap.
             </div>
           </div>
         </div>
       </main>
-
     </div>
   );
 }
