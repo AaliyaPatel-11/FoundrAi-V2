@@ -21,9 +21,9 @@ router = APIRouter()
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(request: ChatCompletionRequest):
     try:
-        # Route the conversation through the agent orchestrator
+        # Generate the response using full messages history
         content = run_agent(request.messages, request.role)
-
+        
         # Construct OpenAI-compatible response format
         response_id = f"chatcmpl-fondrai-{uuid.uuid4().hex[:8]}"
         created_time = int(time.time())
